@@ -1,1 +1,83 @@
-js-homework
+# Travel Planner
+
+以 React + Vite 製作的旅遊行程規劃工具。使用者可以建立旅程、選擇目的地城市、查看推薦景點與天氣預測，並把景點加入每日行程。資料儲存在瀏覽器 `localStorage`，目前不需要後端。
+
+## 功能
+
+- 介紹首頁與功能頁分離
+- 建立旅程：名稱、目的地城市、出發日期、回程日期、封面顏色
+- 支援多個亞洲旅遊城市：日本、韓國、台灣、泰國、越南、新加坡、港澳、馬來西亞、印尼、上海
+- 新增旅程時顯示城市地圖與推薦景點
+- 可將推薦景點加入第一天行程
+- 使用 Open-Meteo 顯示每日天氣預測
+- 旅程列表與統計摘要
+- 旅程詳情頁可編輯每日行程
+- 行程地圖標記與行程項目同步聚焦
+- 一鍵複製行程摘要
+- 所有資料儲存在 `localStorage`
+
+## 頁面
+
+| 路由 | 說明 |
+| --- | --- |
+| `/` | 介紹首頁 |
+| `/planner` | 功能頁：旅程列表、新增旅程、地圖探索 |
+| `/trip/:tripId` | 旅程詳情頁：每日行程與地圖 |
+
+## 技術
+
+- React
+- Vite
+- React Router
+- React Leaflet + Leaflet
+- OpenStreetMap
+- Open-Meteo API
+- localStorage
+
+## 安裝與執行
+
+```bash
+npm install
+npm run dev
+```
+
+開發伺服器啟動後，打開終端機顯示的 localhost 網址。
+
+## 打包
+
+```bash
+npm run build
+```
+
+打包輸出會產生在 `dist/`，此資料夾已加入 `.gitignore`，不會推到 GitHub。
+
+## API 說明
+
+目前天氣使用 Open-Meteo：
+
+- 不需要 API key
+- 透過目的地城市查詢座標
+- 依旅程日期抓每日天氣、溫度與降雨機率
+
+地圖使用 OpenStreetMap 圖磚與 Leaflet。瀏覽器需要能連網才會看到地圖底圖與天氣資料。
+
+## 專案結構
+
+```text
+src/
+├── components/
+├── context/
+├── data/
+├── hooks/
+├── pages/
+├── utils/
+├── App.jsx
+├── main.jsx
+└── styles.css
+```
+
+## 注意事項
+
+- `node_modules/`、`dist/`、`.env*` 都已加入 `.gitignore`
+- 若瀏覽器顯示舊資料，可清除 `localStorage` 的 `travel-planner-trips`
+- 此專案目前沒有後端，換瀏覽器或清除資料後，已建立的旅程不會保留

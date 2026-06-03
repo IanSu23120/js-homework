@@ -51,6 +51,32 @@ npm run build
 
 打包輸出會產生在 `dist/`，此資料夾已加入 `.gitignore`，不會推到 GitHub。
 
+## GitHub Actions
+
+專案已加入基本 CI workflow 與 GitHub Pages 部署 workflow：
+
+```text
+.github/workflows/ci.yml
+.github/workflows/deploy-pages.yml
+```
+
+每次 push 或 pull request 到 `main` / `master` 時，GitHub Actions 會自動執行：
+
+```bash
+npm ci
+npm run build
+```
+
+用來確認依賴安裝與正式打包都正常。
+
+部署到 GitHub Pages 時，`deploy-pages.yml` 會在 push 到 `main` / `master` 後自動 build 並發布 `dist/`。
+
+GitHub repository 需要到 `Settings → Pages`，將 Source 設為 `GitHub Actions`。部署完成後網址通常會是：
+
+```text
+https://<你的帳號>.github.io/js-homework/
+```
+
 ## API 說明
 
 目前天氣使用 Open-Meteo：

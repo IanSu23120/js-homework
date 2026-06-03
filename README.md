@@ -102,6 +102,22 @@ src/
 └── styles.css
 ```
 
+## 文件
+
+詳細文件放在 `docs/`：
+
+- `docs/project-overview.md`
+- `docs/tech-stack.md`
+- `docs/development-process.md`
+- `docs/features.md`
+- `docs/data-structure.md`
+- `docs/api-and-integrations.md`
+- `docs/deployment.md`
+- `docs/future-work.md`
+- `docs/documentation-sync.md`
+
+未來若修改功能、資料結構、API、部署流程或技術選型，請同步更新文件。PR 會透過 `.github/workflows/docs-sync.yml` 檢查程式碼變更是否有同步文件。
+
 ## 注意事項
 
 - `node_modules/`、`dist/`、`.env*` 都已加入 `.gitignore`

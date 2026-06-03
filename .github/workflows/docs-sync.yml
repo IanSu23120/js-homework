@@ -1,0 +1,38 @@
+name: Documentation Sync
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  docs-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check documentation was updated with code changes
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+
+          changed_files="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")"
+
+          code_changes="$(printf '%s\n' "$changed_files" | grep -E '^(src/|package\.json|package-lock\.json|vite\.config\.js|index\.html|\.github/workflows/)' || true)"
+          docs_changes="$(printf '%s\n' "$changed_files" | grep -E '^(docs/|README\.md|travel-planner-plan\.md)' || true)"
+
+          if [ -n "$code_changes" ] && [ -z "$docs_changes" ]; then
+            echo "Code or workflow files changed, but documentation was not updated."
+            echo ""
+            echo "Changed code/workflow files:"
+            printf '%s\n' "$code_changes"
+            echo ""
+            echo "Please update docs/, README.md, or travel-planner-plan.md."
+            exit 1
+          fi
+
+          echo "Documentation sync check passed."

@@ -6,6 +6,7 @@ from .views import (
     ExpenseViewSet,
     RegisterView,
     RestaurantReviewViewSet,
+    ScheduleItemCommentViewSet,
     ScheduleItemViewSet,
     SuggestionViewSet,
     TripViewSet,
@@ -15,6 +16,7 @@ from .views import (
 router = DefaultRouter()
 router.register('trips', TripViewSet, basename='trip')
 router.register('schedule-items', ScheduleItemViewSet, basename='scheduleitem')
+router.register('schedule-item-comments', ScheduleItemCommentViewSet, basename='scheduleitemcomment')
 router.register('expenses', ExpenseViewSet, basename='expense')
 router.register('reviews', RestaurantReviewViewSet, basename='review')
 router.register('suggestions', SuggestionViewSet, basename='suggestion')

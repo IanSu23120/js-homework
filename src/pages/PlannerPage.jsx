@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AttractionExplorer from '../components/AttractionExplorer.jsx';
 import StatCard from '../components/StatCard.jsx';
@@ -9,10 +9,29 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { countTripDays, getNextTrip } from '../utils/dateUtils.js';
 
 export default function PlannerPage() {
-  const { trips, addTrip, deleteTrip, addScheduleItem } = useTrips();
-  const { user, logout } = useAuth();
+  const { trips, addTrip, deleteTrip, updateTripGroup, addScheduleItem } = useTrips();
+  const { user, logout, authFetch } = useAuth();
   const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [groups, setGroups] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadGroups() {
+      try {
+        const data = await authFetch('/api/groups/');
+        if (active) setGroups(data);
+      } catch (err) {
+        console.error('Failed to load groups:', err);
+      }
+    }
+
+    loadGroups();
+    return () => {
+      active = false;
+    };
+  }, [authFetch]);
 
   const stats = useMemo(() => {
     const totalDays = trips.reduce(
@@ -88,7 +107,7 @@ export default function PlannerPage() {
         <div className="section-title">
           <div>
             <h2>我的旅程</h2>
-            <p>建立旅程後，資料會儲存在這台瀏覽器的 localStorage。</p>
+            <p>建立旅程後，資料會同步至你的帳號，也能選擇分享給群組。</p>
           </div>
           <button className="secondary-button" onClick={() => setIsFormOpen(true)}>
             建立旅程
@@ -98,7 +117,14 @@ export default function PlannerPage() {
         {trips.length > 0 ? (
           <div className="trip-grid">
             {trips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} onDelete={deleteTrip} />
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                groups={groups}
+                currentUserId={user?.id}
+                onDelete={deleteTrip}
+                onChangeGroup={updateTripGroup}
+              />
             ))}
           </div>
         ) : (

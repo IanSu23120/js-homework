@@ -9,7 +9,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (user) {
-      navigate('/planner');
+      navigate('/');
     }
   }, [user, navigate]);
   const [error, setError] = useState('');

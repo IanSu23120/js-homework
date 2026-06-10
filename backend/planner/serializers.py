@@ -5,6 +5,7 @@ from .models import (
     Expense,
     RestaurantReview,
     ScheduleItem,
+    ScheduleItemComment,
     Suggestion,
     Trip,
     TravelGroup,
@@ -37,8 +38,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class ScheduleItemCommentSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+
+    class Meta:
+        model = ScheduleItemComment
+        fields = '__all__'
+        read_only_fields = ['id', 'author', 'created_at']
+
+
 class ScheduleItemSerializer(serializers.ModelSerializer):
     creator = UserSerializer(read_only=True)
+    comments = ScheduleItemCommentSerializer(read_only=True, many=True)
 
     class Meta:
         model = ScheduleItem
@@ -53,6 +64,17 @@ class ExpenseSerializer(serializers.ModelSerializer):
         model = Expense
         fields = '__all__'
         read_only_fields = ['id', 'payer', 'created_at']
+
+    def validate(self, attrs):
+        trip = attrs.get('trip') or getattr(self.instance, 'trip', None)
+        schedule_item = attrs.get('schedule_item')
+
+        if schedule_item and schedule_item.trip_id != getattr(trip, 'id', None):
+            raise serializers.ValidationError({
+                'schedule_item': '費用項目必須屬於同一個旅程。',
+            })
+
+        return attrs
 
 
 class RestaurantReviewSerializer(serializers.ModelSerializer):

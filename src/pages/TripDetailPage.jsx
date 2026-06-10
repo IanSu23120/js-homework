@@ -20,8 +20,6 @@ const emptyForm = {
   time: '',
   title: '',
   note: '',
-  amount: '',
-  currency: 'TWD',
   lat: '',
   lng: '',
 };
@@ -169,25 +167,6 @@ export default function TripDetailPage() {
 
     addManualScheduleItem(trip.id, selectedDay.date, scheduleData);
 
-    if (form.amount && user) {
-      try {
-        await authFetch('/api/expenses/', {
-          method: 'POST',
-          body: {
-            trip: trip.id,
-            amount: Number(form.amount),
-            currency: form.currency,
-            category: '餐飲',
-            date: selectedDay.date,
-            note: form.note.trim(),
-            shared: false,
-          },
-        });
-      } catch (err) {
-        console.error('Failed to save expense:', err);
-      }
-    }
-
     setForm(emptyForm);
   }
 
@@ -251,7 +230,7 @@ export default function TripDetailPage() {
           <div className="section-title">
             <div>
               <h2>{formatDate(selectedDay?.date)} 行程</h2>
-              <p>點選行程會同步移動地圖；時間與備註可直接修改，若輸入費用即可同時記帳。</p>
+              <p>點選行程會同步移動地圖；時間與備註可直接修改，費用請在下方快速記帳區新增。</p>
             </div>
           </div>
 
@@ -271,36 +250,6 @@ export default function TripDetailPage() {
               required
             />
             <button className="primary-button">新增</button>
-            <textarea
-              name="note"
-              value={form.note}
-              onChange={updateField}
-              placeholder="備註"
-            />
-            <label>
-              金額 (選填)
-              <input
-                name="amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.amount}
-                onChange={updateField}
-                placeholder="費用"
-              />
-            </label>
-            <label>
-              幣別
-              <select name="currency" value={form.currency} onChange={updateField}>
-                <option value="TWD">TWD</option>
-                <option value="JPY">JPY</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </label>
-            {!user && form.amount && (
-              <p className="form-note">請登入後才能將費用一併記帳。</p>
-            )}
           </form>
 
           <div className="schedule-list schedule-card-list">
@@ -309,6 +258,9 @@ export default function TripDetailPage() {
                 <ScheduleItem
                   key={item.id}
                   item={item}
+                  tripId={trip.id}
+                  tripDate={selectedDay.date}
+                  tripExpenses={trip.expenses}
                   isActive={item.id === activeItemId}
                   onFocus={() => {
                     setActiveItemId(item.id);
@@ -529,30 +481,277 @@ export default function TripDetailPage() {
   );
 }
 
-function ScheduleItem({ item, isActive, onFocus, onUpdate, onDelete }) {
+function ScheduleItem({
+  item,
+  tripId,
+  tripDate,
+  tripExpenses,
+  isActive,
+  onFocus,
+  onUpdate,
+  onDelete,
+}) {
+  const { authFetch, user } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(item.title || '');
+  const [comments, setComments] = useState(item.comments || []);
+  const [additionalNote, setAdditionalNote] = useState('');
+  const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
+  const [noteError, setNoteError] = useState('');
+  const [expenseDraft, setExpenseDraft] = useState({
+    amount: '',
+    currency: 'TWD',
+    note: '',
+  });
+  const [expenses, setExpenses] = useState(() =>
+    tripExpenses.filter((expense) => expense.schedule_item === item.id),
+  );
+
+  useEffect(() => {
+    setTitleDraft(item.title || '');
+  }, [item.title]);
+
+  useEffect(() => {
+    setComments(item.comments || []);
+  }, [item.comments]);
+
+  useEffect(() => {
+    setExpenses(tripExpenses.filter((expense) => expense.schedule_item === item.id));
+  }, [tripExpenses, item.id]);
+
+  function saveTitle() {
+    const nextTitle = titleDraft.trim();
+
+    if (!nextTitle) {
+      setTitleDraft(item.title || '');
+      return;
+    }
+
+    if (nextTitle === item.title) return;
+    onUpdate({ title: nextTitle });
+  }
+
+  function handleTitleKeyDown(event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    saveTitle();
+    event.currentTarget.blur();
+  }
+
+  async function submitAdditionalNote(event) {
+    event.preventDefault();
+    const nextNote = additionalNote.trim();
+    if (!nextNote) return;
+
+    setNoteError('');
+    try {
+      const createdComment = await authFetch('/api/schedule-item-comments/', {
+        method: 'POST',
+        body: {
+          schedule_item: item.id,
+          content: nextNote,
+        },
+      });
+      setComments((current) => [...current, createdComment]);
+      setAdditionalNote('');
+      setIsNoteFormOpen(false);
+    } catch (err) {
+      console.error('Failed to save note:', err);
+      setNoteError(
+        err.status === 404
+          ? '找不到備註 API，請重新啟動 Django 後端後再試。'
+          : err.detail || '新增備註失敗，請稍後再試。',
+      );
+    }
+  }
+
+  async function submitExpense(event) {
+    event.preventDefault();
+    if (!expenseDraft.amount || !user) return;
+
+    try {
+      const createdExpense = await authFetch('/api/expenses/', {
+        method: 'POST',
+        body: {
+          trip: tripId,
+          schedule_item: item.id,
+          amount: Number(expenseDraft.amount),
+          currency: expenseDraft.currency,
+          category: '其他',
+          date: tripDate,
+          note: expenseDraft.note.trim(),
+          shared: false,
+        },
+      });
+      setExpenses((current) => [...current, createdExpense]);
+      setExpenseDraft({ amount: '', currency: 'TWD', note: '' });
+    } catch (err) {
+      console.error('Failed to save expense:', err);
+    }
+  }
+
   return (
-    <article className={isActive ? 'schedule-item is-active' : 'schedule-item'} onClick={onFocus}>
-      <div className="schedule-main">
-        <input
-          type="time"
-          value={item.time || ''}
-          onChange={(event) => onUpdate({ time: event.target.value })}
-          aria-label="修改時間"
-        />
-        <input
-          value={item.title}
-          onChange={(event) => onUpdate({ title: event.target.value })}
-          aria-label="修改標題"
-        />
-        <button type="button" className="delete-button" onClick={onDelete}>
-          刪除
+    <article
+      className={`${isActive ? 'schedule-item is-active' : 'schedule-item'} ${
+        isExpanded ? 'is-expanded' : 'is-collapsed'
+      }`}
+      onClick={onFocus}
+    >
+      <div className="schedule-collapse-header">
+        <button
+          type="button"
+          className="schedule-collapse-button"
+          aria-expanded={isExpanded}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsExpanded((current) => !current);
+            onFocus();
+          }}
+        >
+          <span className="schedule-collapse-time">{item.time || '未設定時間'}</span>
+          <strong>{item.title || '未命名行程'}</strong>
+          <span aria-hidden="true">{isExpanded ? '收合' : '展開'}</span>
         </button>
       </div>
-      <textarea
-        value={item.note || ''}
-        onChange={(event) => onUpdate({ note: event.target.value })}
-        placeholder="備註"
-      />
+      {isExpanded && (
+        <div className="schedule-item-details">
+          <div className="schedule-main">
+            <input
+              type="time"
+              value={item.time || ''}
+              onChange={(event) => onUpdate({ time: event.target.value })}
+              aria-label="修改時間"
+              onClick={(event) => event.stopPropagation()}
+            />
+            <input
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="行程名稱"
+              aria-label="修改標題"
+              onClick={(event) => event.stopPropagation()}
+            />
+            <button type="button" className="delete-button" onClick={onDelete}>
+              刪除
+            </button>
+          </div>
+          {(item.note?.trim() || comments.length > 0) && (
+            <div className="item-comment-list" onClick={(event) => event.stopPropagation()}>
+              {item.note?.trim() && (
+                <article className="item-comment">
+                  <strong>{item.creator?.username || '原始備註'}</strong>
+                  <p>{item.note}</p>
+                </article>
+              )}
+              {comments.map((comment) => (
+                <article className="item-comment" key={comment.id}>
+                  <strong>{comment.author?.username || '使用者'}</strong>
+                  <p>{comment.content}</p>
+                </article>
+              ))}
+            </div>
+          )}
+          {isNoteFormOpen ? (
+            <form
+              className="item-note-form"
+              onSubmit={submitAdditionalNote}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <label>
+                新增備註
+                <input
+                  value={additionalNote}
+                  onChange={(event) => setAdditionalNote(event.target.value)}
+                  placeholder="輸入備註"
+                  autoFocus
+                />
+              </label>
+              <button className="secondary-button" type="submit" disabled={!additionalNote.trim()}>
+                儲存備註
+              </button>
+              <button
+                className="ghost-link"
+                type="button"
+                onClick={() => {
+                  setAdditionalNote('');
+                  setIsNoteFormOpen(false);
+                }}
+              >
+                取消
+              </button>
+              {noteError && <p className="form-error item-note-error">{noteError}</p>}
+            </form>
+          ) : (
+            <button
+              className="secondary-button add-note-button"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsNoteFormOpen(true);
+              }}
+            >
+              新增備註
+            </button>
+          )}
+          {expenses.length > 0 && (
+            <div className="item-expense-list" onClick={(event) => event.stopPropagation()}>
+              {expenses.map((expense) => (
+                <div className="item-expense-record" key={expense.id}>
+                  <div>
+                    <span>記帳者：{expense.payer?.username || '使用者'}</span>
+                    {expense.note && <p>{expense.note}</p>}
+                  </div>
+                  <strong>
+                    {expense.amount} {expense.currency}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          )}
+          <form className="item-expense-form" onSubmit={submitExpense} onClick={(event) => event.stopPropagation()}>
+            <label>
+              金額
+              <input
+                name="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={expenseDraft.amount}
+                onChange={(event) => setExpenseDraft((current) => ({ ...current, amount: event.target.value }))}
+                placeholder="費用"
+              />
+            </label>
+            <label>
+              幣別
+              <select
+                name="currency"
+                value={expenseDraft.currency}
+                onChange={(event) => setExpenseDraft((current) => ({ ...current, currency: event.target.value }))}
+              >
+                <option value="TWD">TWD</option>
+                <option value="JPY">JPY</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </label>
+            <label className="expense-note-field">
+              費用備註
+              <input
+                name="note"
+                value={expenseDraft.note}
+                onChange={(event) =>
+                  setExpenseDraft((current) => ({ ...current, note: event.target.value }))
+                }
+                placeholder="例如：午餐、車票"
+              />
+            </label>
+            <button className="secondary-button" type="submit" disabled={!user || !expenseDraft.amount}>
+              記帳
+            </button>
+          </form>
+        </div>
+      )}
     </article>
   );
 }

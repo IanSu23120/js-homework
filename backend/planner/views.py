@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,6 +10,7 @@ from .models import (
     Expense,
     RestaurantReview,
     ScheduleItem,
+    ScheduleItemComment,
     Suggestion,
     Trip,
     TravelGroup,
@@ -17,6 +19,7 @@ from .serializers import (
     ExpenseSerializer,
     RegisterSerializer,
     RestaurantReviewSerializer,
+    ScheduleItemCommentSerializer,
     ScheduleItemSerializer,
     SuggestionSerializer,
     TripSerializer,
@@ -81,6 +84,16 @@ class TripViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    def perform_update(self, serializer):
+        if serializer.instance.owner_id != self.request.user.id:
+            raise PermissionDenied('只有行程建立者可以修改分享設定。')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.owner_id != self.request.user.id:
+            raise PermissionDenied('只有行程建立者可以刪除行程。')
+        instance.delete()
+
 
 class ScheduleItemViewSet(viewsets.ModelViewSet):
     serializer_class = ScheduleItemSerializer
@@ -94,6 +107,27 @@ class ScheduleItemViewSet(viewsets.ModelViewSet):
 
     def get_trip_queryset(self):
         return Trip.objects.filter(Q(owner=self.request.user) | Q(group__members=self.request.user)).distinct()
+
+
+class ScheduleItemCommentViewSet(viewsets.ModelViewSet):
+    serializer_class = ScheduleItemCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ScheduleItemComment.objects.filter(
+            schedule_item__trip__in=self.get_trip_queryset(),
+        ).select_related('author')
+
+    def perform_create(self, serializer):
+        schedule_item = serializer.validated_data['schedule_item']
+        if not self.get_trip_queryset().filter(id=schedule_item.trip_id).exists():
+            raise PermissionDenied('你無法在此行程新增備註。')
+        serializer.save(author=self.request.user)
+
+    def get_trip_queryset(self):
+        return Trip.objects.filter(
+            Q(owner=self.request.user) | Q(group__members=self.request.user),
+        ).distinct()
 
 
 class ExpenseViewSet(viewsets.ModelViewSet):

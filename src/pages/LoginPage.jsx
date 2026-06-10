@@ -9,7 +9,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      navigate('/planner');
+      navigate('/');
     }
   }, [user, navigate]);
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function LoginPage() {
     event.preventDefault();
     try {
       await login(form);
-      navigate('/planner');
+      navigate('/');
     } catch (err) {
       setError(err.detail || '登入失敗，請確認帳號密碼。');
     }

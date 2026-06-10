@@ -29,6 +29,8 @@ function normalizeBackendTrip(trip) {
       title: item.title,
       category: item.category,
       note: item.note || '',
+      creator: item.creator || null,
+      comments: Array.isArray(item.comments) ? item.comments : [],
       lat: item.lat,
       lng: item.lng,
     });
@@ -44,6 +46,7 @@ function normalizeBackendTrip(trip) {
     endDate: trip.end_date,
     coverColor: trip.cover_color || '#2F80ED',
     group: trip.group || null,
+    ownerId: trip.owner?.id || null,
     days: normalizeDays(days, generatedDays),
     expenses: Array.isArray(trip.expenses) ? trip.expenses : [],
   };
@@ -60,6 +63,8 @@ function normalizeLocalTrip(trip, index) {
     startDate: trip.startDate || '',
     endDate: trip.endDate || trip.startDate || '',
     coverColor: trip.coverColor || '#2F80ED',
+    group: trip.group || null,
+    ownerId: trip.ownerId || null,
     days: normalizeDays(Array.isArray(trip.days) ? trip.days : generatedDays, generatedDays),
     expenses: Array.isArray(trip.expenses) ? trip.expenses : [],
   };
@@ -164,6 +169,32 @@ export function TripProvider({ children }) {
       setBackendTrips((current) => current.filter((trip) => trip.id !== id));
     } catch (err) {
       console.error('Failed to delete trip:', err);
+    }
+  }
+
+  async function updateTripGroup(tripId, groupId) {
+    if (!user) {
+      setStoredTrips(
+        trips.map((trip) =>
+          trip.id === tripId ? { ...trip, group: groupId || null } : trip,
+        ),
+      );
+      return true;
+    }
+
+    try {
+      const updated = await authFetch(`/api/trips/${tripId}/`, {
+        method: 'PATCH',
+        body: { group: groupId || null },
+      });
+      const normalized = normalizeBackendTrip(updated);
+      setBackendTrips((current) =>
+        current.map((trip) => (trip.id === tripId ? normalized : trip)),
+      );
+      return true;
+    } catch (err) {
+      console.error('Failed to update trip group:', err);
+      return false;
     }
   }
 
@@ -396,6 +427,7 @@ export function TripProvider({ children }) {
       isLoading,
       addTrip,
       deleteTrip,
+      updateTripGroup,
       addScheduleItem,
       addManualScheduleItem,
       updateScheduleItem,

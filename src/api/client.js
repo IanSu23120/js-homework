@@ -22,10 +22,19 @@ export async function apiRequest(path, options = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { detail: text };
+    }
+  }
 
   if (!response.ok) {
     const error = data || { detail: response.statusText };
+    error.status = response.status;
     throw error;
   }
 

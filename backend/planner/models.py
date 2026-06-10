@@ -108,11 +108,36 @@ class ScheduleItem(models.Model):
         return f'{self.title} ({self.date})'
 
 
+class ScheduleItemComment(models.Model):
+    schedule_item = models.ForeignKey(
+        ScheduleItem,
+        related_name='comments',
+        on_delete=models.CASCADE,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='schedule_item_comments',
+        on_delete=models.CASCADE,
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'{self.author}: {self.content[:40]}'
+
+
 class Expense(models.Model):
     trip = models.ForeignKey(
         Trip,
         related_name='expenses',
         on_delete=models.CASCADE,
+    )
+    schedule_item = models.ForeignKey(
+        ScheduleItem,
+        related_name='expenses',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     payer = models.ForeignKey(
         settings.AUTH_USER_MODEL,

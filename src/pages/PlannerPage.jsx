@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AttractionExplorer from '../components/AttractionExplorer.jsx';
 import StatCard from '../components/StatCard.jsx';
 import TripCard from '../components/TripCard.jsx';
 import TripForm from '../components/TripForm.jsx';
 import { useTrips } from '../context/TripContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { countTripDays, getNextTrip } from '../utils/dateUtils.js';
 
 export default function PlannerPage() {
   const { trips, addTrip, deleteTrip, addScheduleItem } = useTrips();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const stats = useMemo(() => {
@@ -25,22 +28,29 @@ export default function PlannerPage() {
     };
   }, [trips]);
 
-  function handleCreateTrip(trip) {
-    addTrip(trip);
+  function handleCreateTrip({ trip, selectedAttractions }) {
+    addTrip(trip, selectedAttractions);
     setIsFormOpen(false);
   }
 
   return (
     <main className="app-shell">
       <header className="topbar" aria-label="功能頁導覽">
-        <Link className="brand" to="/">
+        <Link className="brand" to="/planner">
           <span className="brand-mark">TP</span>
           <span>Travel Planner</span>
         </Link>
         <div className="topbar-actions">
-          <Link className="ghost-link" to="/">
-            介紹首頁
+          <span className="user-label">目前使用者：{user?.username || '訪客'}</span>
+          <Link className="ghost-link" to="/groups">
+            群組協作
           </Link>
+          <Link className="ghost-link" to="/">
+            回到首頁
+          </Link>
+          <button className="ghost-link" type="button" onClick={() => { logout(); navigate('/login'); }}>
+            登出
+          </button>
           <button className="primary-button" onClick={() => setIsFormOpen(true)}>
             <span aria-hidden="true">+</span>
             新增旅程

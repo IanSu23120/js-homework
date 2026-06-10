@@ -1185,3 +1185,66 @@ dd {
     padding: 18px;
   }
 }
+
+.auth-shell,
+.page-shell {
+  min-height: 100vh;
+  padding: 48px 24px;
+  background: #f7f8fb;
+}
+
+.auth-card,
+.card,
+.group-card,
+.expense-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.08);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.auth-form,
+.simple-form,
+.expense-form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-form input,
+.auth-form textarea,
+.simple-form input,
+.expense-form input,
+.expense-form textarea,
+.expense-form select,
+.auth-form select {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d9dbe1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.form-error {
+  color: #d02f2f;
+  font-size: 0.95rem;
+}
+
+.auth-footer,
+.detail-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.group-list,
+.expense-list {
+  display: grid;
+  gap: 16px;
+}
+
+.expense-card p {
+  margin: 0.5rem 0 0;
+  color: #4f5a6b;
+}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import { coverColors } from '../data/starterTrips.js';
 import { attractions } from '../data/attractions.js';
 import { destinationCities } from '../data/cities.js';
@@ -11,6 +12,7 @@ const initialForm = {
   startDate: '',
   endDate: '',
   coverColor: coverColors[0],
+  group: '',
 };
 
 function makeId() {
@@ -22,8 +24,29 @@ function makeId() {
 }
 
 export default function TripForm({ onClose, onSubmit }) {
+  const { authFetch, user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [selectedAttractionIds, setSelectedAttractionIds] = useState([]);
+  const [groups, setGroups] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadGroups() {
+      if (!user) return;
+      try {
+        const data = await authFetch('/api/groups/');
+        if (active) setGroups(data);
+      } catch (err) {
+        console.error('Failed to load groups:', err);
+      }
+    }
+
+    loadGroups();
+    return () => {
+      active = false;
+    };
+  }, [authFetch, user]);
 
   const isValid =
     form.name.trim() &&
@@ -63,14 +86,18 @@ export default function TripForm({ onClose, onSubmit }) {
     });
 
     onSubmit({
-      id: makeId(),
-      name: form.name.trim(),
-      destination: form.destination.trim(),
-      startDate: form.startDate,
-      endDate: form.endDate,
-      coverColor: form.coverColor,
-      days: daysWithRecommendations,
-      expenses: [],
+      trip: {
+        id: makeId(),
+        name: form.name.trim(),
+        destination: form.destination.trim(),
+        startDate: form.startDate,
+        endDate: form.endDate,
+        coverColor: form.coverColor,
+        group: form.group || null,
+        days: daysWithRecommendations,
+        expenses: [],
+      },
+      selectedAttractions,
     });
   }
 
@@ -167,6 +194,20 @@ export default function TripForm({ onClose, onSubmit }) {
               ))}
             </div>
           </fieldset>
+
+          {groups.length > 0 && (
+            <label>
+              群組旅程（選填）
+              <select name="group" value={form.group} onChange={updateField}>
+                <option value="">獨立旅程</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <TripSetupAssistant
             destination={form.destination}

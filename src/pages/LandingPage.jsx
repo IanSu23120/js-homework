@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const features = [
   {
@@ -20,6 +21,8 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const { user, logout } = useAuth();
+
   return (
     <main className="landing-shell">
       <header className="landing-nav">
@@ -27,9 +30,35 @@ export default function LandingPage() {
           <span className="brand-mark">TP</span>
           <span>Travel Planner</span>
         </Link>
-        <Link className="primary-button" to="/planner">
-          開始規劃
-        </Link>
+        <div className="landing-nav-actions">
+          {user ? (
+            <>
+              <span className="user-label">目前使用者：{user.username}</span>
+              <Link className="ghost-link" to="/planner">
+                功能頁
+              </Link>
+              <Link className="ghost-link" to="/groups">
+                群組協作
+              </Link>
+              <button
+                className="ghost-link"
+                type="button"
+                onClick={() => logout()}
+              >
+                登出
+              </button>
+            </>
+          ) : (
+            <>
+              <Link className="ghost-link" to="/login">
+                登入
+              </Link>
+              <Link className="primary-button" to="/register">
+                註冊
+              </Link>
+            </>
+          )}
+        </div>
       </header>
 
       <section className="landing-hero">
@@ -40,8 +69,8 @@ export default function LandingPage() {
             這是一個以 React 製作的旅遊行程規劃工具。你可以建立旅程、查看推薦景點、加入每日行程，並用地圖確認路線位置。
           </p>
           <div className="landing-actions">
-            <Link className="primary-button" to="/planner">
-              進入功能頁
+            <Link className="primary-button" to={user ? '/planner' : '/login'}>
+              {user ? '前往我的旅程' : '開始使用'}
             </Link>
             <a className="ghost-link" href="#features">
               查看功能

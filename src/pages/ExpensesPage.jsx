@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTrips } from '../context/TripContext.jsx';
+import { formatDate } from '../utils/dateUtils.js';
 
 export default function ExpensesPage() {
   const { tripId } = useParams();
   const { authFetch, user } = useAuth();
+  const { trips } = useTrips();
   const [expenses, setExpenses] = useState([]);
+  const trip = trips.find((item) => item.id === tripId);
 
   useEffect(() => {
     async function loadExpenses() {
@@ -25,6 +29,24 @@ export default function ExpensesPage() {
     totals[expense.currency] = current + Number(expense.amount);
     return totals;
   }, {});
+
+  function getTripDay(expenseDate) {
+    const dayIndex = trip?.days.findIndex((day) => day.date === expenseDate) ?? -1;
+    return dayIndex >= 0 ? `Day ${dayIndex + 1}` : '旅程日期';
+  }
+
+  function getScheduleTitle(scheduleItemId) {
+    if (!scheduleItemId) return '未指定行程項目';
+
+    for (const day of trip?.days || []) {
+      const scheduleItem = day.items.find(
+        (item) => String(item.id) === String(scheduleItemId),
+      );
+      if (scheduleItem) return scheduleItem.title;
+    }
+
+    return '行程項目已移除';
+  }
 
   return (
     <main className="page-shell">
@@ -59,11 +81,25 @@ export default function ExpensesPage() {
           <div className="expense-list">
             {expenses.map((expense) => (
               <article className="expense-card" key={expense.id}>
-                <div>
+                <div className="expense-card-header">
                   <strong>{expense.amount} {expense.currency}</strong>
-                  <p>{expense.category} · {expense.date}</p>
+                  <span>{expense.category}</span>
                 </div>
-                <p>{expense.note}</p>
+                <dl className="expense-card-meta">
+                  <div>
+                    <dt>行程日</dt>
+                    <dd>{getTripDay(expense.date)} · {formatDate(expense.date)}</dd>
+                  </div>
+                  <div>
+                    <dt>記帳者</dt>
+                    <dd>{expense.payer?.username || '未知使用者'}</dd>
+                  </div>
+                  <div>
+                    <dt>行程項目</dt>
+                    <dd>{getScheduleTitle(expense.schedule_item)}</dd>
+                  </div>
+                </dl>
+                {expense.note && <p className="expense-card-note">{expense.note}</p>}
               </article>
             ))}
           </div>

@@ -61,3 +61,32 @@ travel-planner-trips
 - localStorage 是瀏覽器本機資料，不會跨裝置同步。
 - 清除瀏覽器資料後，旅程資料會消失。
 - 若未來加入登入或後端，需要將此資料結構轉成 API schema。
+
+## Suggestion
+
+登入後的群組提案儲存在 Django 資料庫：
+
+```json
+{
+  "id": 1,
+  "group": "group-uuid",
+  "author": {
+    "id": 2,
+    "username": "member"
+  },
+  "title": "景福宮",
+  "description": "早上前往比較不熱",
+  "category": "景點",
+  "trip": "trip-uuid",
+  "place_id": "google-place-id",
+  "lat": 37.5796,
+  "lng": 126.977,
+  "voters": [],
+  "vote_count": 0,
+  "has_voted": false,
+  "accepted": false,
+  "accepted_schedule_item": null
+}
+```
+
+提案直接隸屬共享旅程。`place_id`、`lat`、`lng` 由地圖選點自動產生，不提供手動座標欄位。創立者接受後，後端會在該旅程建立含相同位置的 `ScheduleItem`，並將其 ID 記錄在 `accepted_schedule_item`。

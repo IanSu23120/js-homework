@@ -8,6 +8,7 @@ import PlannerPage from './pages/PlannerPage.jsx';
 import TripDetailPage from './pages/TripDetailPage.jsx';
 import GroupsPage from './pages/GroupsPage.jsx';
 import ExpensesPage from './pages/ExpensesPage.jsx';
+import TripSuggestionsPage from './pages/TripSuggestionsPage.jsx';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -61,6 +62,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <ExpensesPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/trip/:tripId/suggestions"
+              element={
+                <RequireAuth>
+                  <TripSuggestionsPage />
                 </RequireAuth>
               }
             />

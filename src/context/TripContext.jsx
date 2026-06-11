@@ -8,12 +8,26 @@ const STORAGE_KEY = 'travel-planner-trips';
 const TripContext = createContext(null);
 
 function normalizeDays(days, fallbackDays) {
-  const sourceDays = days.length > 0 ? days : fallbackDays;
+  const dayMap = new Map(
+    fallbackDays.map((day) => [
+      day.date,
+      {
+        date: day.date,
+        items: Array.isArray(day.items) ? day.items : [],
+      },
+    ]),
+  );
 
-  return sourceDays.map((day) => ({
-    date: day.date,
-    items: Array.isArray(day.items) ? day.items : [],
-  }));
+  days.forEach((day) => {
+    dayMap.set(day.date, {
+      date: day.date,
+      items: Array.isArray(day.items) ? day.items : [],
+    });
+  });
+
+  return Array.from(dayMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
 }
 
 function normalizeBackendTrip(trip) {
@@ -421,6 +435,22 @@ export function TripProvider({ children }) {
     }
   }
 
+  async function refreshTrip(tripId) {
+    if (!user) return null;
+
+    try {
+      const updated = await authFetch(`/api/trips/${tripId}/`);
+      const normalized = normalizeBackendTrip(updated);
+      setBackendTrips((current) =>
+        current.map((trip) => (trip.id === tripId ? normalized : trip)),
+      );
+      return normalized;
+    } catch (err) {
+      console.error('Failed to refresh trip:', err);
+      return null;
+    }
+  }
+
   const value = useMemo(
     () => ({
       trips,
@@ -432,6 +462,7 @@ export function TripProvider({ children }) {
       addManualScheduleItem,
       updateScheduleItem,
       deleteScheduleItem,
+      refreshTrip,
     }),
     [trips, isLoading, authFetch],
   );

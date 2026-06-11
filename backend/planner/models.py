@@ -157,6 +157,13 @@ class Expense(models.Model):
 
 
 class Suggestion(models.Model):
+    trip = models.ForeignKey(
+        Trip,
+        related_name='suggestions',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     group = models.ForeignKey(
         TravelGroup,
         related_name='suggestions',
@@ -170,7 +177,22 @@ class Suggestion(models.Model):
     title = models.CharField(max_length=180)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=24, choices=CATEGORY_CHOICES, default='景點')
+    place_id = models.CharField(max_length=255, blank=True)
+    lat = models.FloatField(null=True, blank=True)
+    lng = models.FloatField(null=True, blank=True)
+    voters = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='voted_suggestions',
+        blank=True,
+    )
     accepted = models.BooleanField(default=False)
+    accepted_schedule_item = models.OneToOneField(
+        ScheduleItem,
+        related_name='source_suggestion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

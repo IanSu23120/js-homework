@@ -73,6 +73,57 @@ class TravelGroupViewSet(viewsets.ModelViewSet):
         group.members.add(request.user)
         return Response(TravelGroupSerializer(group).data)
 
+    @action(detail=True, methods=['post'], url_path='leave')
+    def leave(self, request, pk=None):
+        group = self.get_object()
+        if group.leader_id == request.user.id:
+            return Response(
+                {'detail': '群組創立者不能直接退出，請先移除群組或轉讓管理權。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group.members.remove(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='remove-member')
+    def remove_member(self, request, pk=None):
+        group = self.get_object()
+        if group.leader_id != request.user.id:
+            raise PermissionDenied('只有群組創立者可以管理成員。')
+
+        member_id = request.data.get('member_id')
+        if not member_id:
+            return Response(
+                {'detail': 'member_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if str(member_id) == str(group.leader_id):
+            return Response(
+                {'detail': '不能移除群組創立者。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            member = group.members.get(id=member_id)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': '找不到此群組成員。'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        group.members.remove(member)
+        return Response(TravelGroupSerializer(group).data)
+
+    def perform_update(self, serializer):
+        if serializer.instance.leader_id != self.request.user.id:
+            raise PermissionDenied('只有群組創立者可以修改群組。')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.leader_id != self.request.user.id:
+            raise PermissionDenied('只有群組創立者可以解散群組。')
+        instance.delete()
+
 
 class TripViewSet(viewsets.ModelViewSet):
     serializer_class = TripSerializer
@@ -149,10 +200,103 @@ class SuggestionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Suggestion.objects.filter(group__members=self.request.user).distinct()
+        queryset = Suggestion.objects.filter(
+            trip__group__members=self.request.user,
+        ).distinct()
+        trip_id = self.request.query_params.get('trip')
+        if trip_id:
+            queryset = queryset.filter(trip_id=trip_id)
+        return queryset
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        trip = serializer.validated_data['trip']
+        serializer.save(author=self.request.user, group=trip.group)
+
+    def perform_update(self, serializer):
+        suggestion = serializer.instance
+        if (
+            suggestion.author_id != self.request.user.id
+            and suggestion.trip.group.leader_id != self.request.user.id
+        ):
+            raise PermissionDenied('只有提案者或群組創立者可以修改提案。')
+        if suggestion.accepted:
+            raise PermissionDenied('已接受的提案不能修改。')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if (
+            instance.author_id != self.request.user.id
+            and instance.trip.group.leader_id != self.request.user.id
+        ):
+            raise PermissionDenied('只有提案者或群組創立者可以刪除提案。')
+        if instance.accepted:
+            raise PermissionDenied('已接受的提案不能刪除。')
+        instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def vote(self, request, pk=None):
+        suggestion = self.get_object()
+        if suggestion.accepted:
+            return Response(
+                {'detail': '此提案已加入正式行程。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if suggestion.voters.filter(id=request.user.id).exists():
+            suggestion.voters.remove(request.user)
+        else:
+            suggestion.voters.add(request.user)
+
+        return Response(self.get_serializer(suggestion).data)
+
+    @action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        suggestion = self.get_object()
+        if suggestion.trip.group.leader_id != request.user.id:
+            raise PermissionDenied('只有群組創立者可以接受提案。')
+        if suggestion.accepted:
+            return Response(
+                {'detail': '此提案已加入正式行程。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        date = request.data.get('date')
+        time = request.data.get('time') or None
+        if not date:
+            return Response(
+                {'detail': 'date is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        trip = suggestion.trip
+        if not trip:
+            return Response(
+                {'detail': '此提案沒有對應旅程。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if str(date) < str(trip.start_date) or str(date) > str(trip.end_date):
+            return Response(
+                {'detail': '加入日期必須在旅程日期範圍內。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        schedule_item = ScheduleItem.objects.create(
+            trip=trip,
+            date=date,
+            time=time,
+            title=suggestion.title,
+            category=suggestion.category,
+            note=suggestion.description,
+            lat=suggestion.lat,
+            lng=suggestion.lng,
+            creator=request.user,
+        )
+        suggestion.accepted = True
+        suggestion.accepted_schedule_item = schedule_item
+        suggestion.save(update_fields=['accepted', 'accepted_schedule_item'])
+
+        return Response(self.get_serializer(suggestion).data)
 
 
 class RestaurantReviewViewSet(viewsets.ModelViewSet):

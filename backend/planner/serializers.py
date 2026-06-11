@@ -88,11 +88,43 @@ class RestaurantReviewSerializer(serializers.ModelSerializer):
 
 class SuggestionSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
+    voters = UserSerializer(read_only=True, many=True)
+    vote_count = serializers.SerializerMethodField()
+    has_voted = serializers.SerializerMethodField()
 
     class Meta:
         model = Suggestion
         fields = '__all__'
-        read_only_fields = ['id', 'author', 'accepted', 'created_at']
+        read_only_fields = [
+            'id',
+            'author',
+            'voters',
+            'vote_count',
+            'has_voted',
+            'accepted',
+            'accepted_schedule_item',
+            'group',
+            'created_at',
+        ]
+
+    def get_vote_count(self, obj):
+        return obj.voters.count()
+
+    def get_has_voted(self, obj):
+        request = self.context.get('request')
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.voters.filter(id=request.user.id).exists()
+        )
+
+    def validate_trip(self, value):
+        request = self.context.get('request')
+        if not value.group:
+            raise serializers.ValidationError('只有群組共享旅程可以使用提案。')
+        if request and request.user not in value.group.members.all():
+            raise serializers.ValidationError('你必須是群組成員才能提出建議。')
+        return value
 
 
 class TravelGroupSerializer(serializers.ModelSerializer):

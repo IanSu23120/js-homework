@@ -199,6 +199,9 @@ export default function TripDetailPage() {
           <Link className="ghost-link" to={`/trip/${trip.id}/expenses`}>
             費用管理
           </Link>
+          <Link className="ghost-link" to={`/trip/${trip.id}/suggestions`}>
+            提案與投票
+          </Link>
           <button className="primary-button detail-copy-button" onClick={copySummary}>
             複製行程摘要
           </button>
